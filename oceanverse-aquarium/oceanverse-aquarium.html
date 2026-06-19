@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OceanVerse Aquarium 🌊</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal: #00d4d4;
+    --deep-blue: #001a3a;
+    --ocean-mid: #003366;
+    --foam: #e0f7ff;
+    --coral: #ff6b6b;
+    --gold: #ffd700;
+    --glass: rgba(0,30,60,0.55);
+    --glass-border: rgba(0,212,212,0.3);
+    --glow: 0 0 20px rgba(0,212,212,0.4);
+  }
+
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+
+  #canvas-container {
+    position:fixed; inset:0;
+    cursor: grab;
+  }
+  #canvas-container:active { cursor: grabbing; }
+  canvas { display:block; width:100%!important; height:100%!important; }
+
+  /* ── NAV ── */
+  #nav {
+    position:fixed; top:20px; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px; align-items:center;
+    background:var(--glass); backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border); border-radius:50px;
+    padding:8px 16px; z-index:200;
+    box-shadow: var(--glow);
+  }
+  #nav .logo {
+    font-family:'Orbitron',sans-serif; font-weight:900; font-size:14px;
+    color:var(--teal); letter-spacing:2px; margin-right:12px;
+    text-shadow:0 0 10px var(--teal);
+  }
+  #nav button {
+    background:none; border:none; color:var(--foam); font-family:'Inter',sans-serif;
+    font-size:12px; font-weight:500; cursor:pointer; padding:6px 12px;
+    border-radius:20px; transition:all .25s; letter-spacing:.5px;
+  }
+  #nav button:hover, #nav button.active {
+    background:rgba(0,212,212,0.2); color:var(--teal);
+    box-shadow:0 0 10px rgba(0,212,212,0.3);
+  }
+
+  /* ── ZONE PANEL ── */
+  #zone-panel {
+    position:fixed; left:20px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:200;
+  }
+  .zone-btn {
+    background:var(--glass); backdrop-filter:blur(12px);
+    border:1px solid var(--glass-border); border-radius:12px;
+    color:var(--foam); font-family:'Inter',sans-serif; font-size:11px;
+    font-weight:500; cursor:pointer; padding:10px 14px; text-align:left;
+    transition:all .3s; white-space:nowrap; display:flex; align-items:center; gap:8px;
+  }
+  .zone-btn:hover, .zone-btn.active {
+    background:rgba(0,212,212,0.2); border-color:var(--teal);
+    color:var(--teal); transform:translateX(4px); box-shadow:var(--glow);
+  }
+  .zone-btn .dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+
+  /* ── INFO PANEL ── */
+  #info-panel {
+    position:fixed; right:-380px; top:50%; transform:translateY(-50%);
+    width:340px; background:var(--glass); backdrop-filter:blur(20px);
+    border:1px solid var(--glass-border); border-radius:20px;
+    padding:24px; z-index:300; transition:right .5s cubic-bezier(.4,0,.2,1);
+    box-shadow: var(--glow), inset 0 0 40px rgba(0,100,200,0.1);
+  }
+  #info-panel.open { right:20px; }
+  #info-panel .close-btn {
+    position:absolute; top:14px; right:14px;
+    background:rgba(255,255,255,0.1); border:none; color:#fff;
+    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;
+    display:flex;align-items:center;justify-content:center;transition:all .2s;
+  }
+  #info-panel .close-btn:hover { background:rgba(255,100,100,0.4); }
+  #info-panel .creature-icon { font-size:52px; text-align:center; margin-bottom:12px; }
+  #info-panel h2 {
+    font-family:'Orbitron',sans-serif; color:var(--teal); font-size:16px;
+    font-weight:700; margin-bottom:4px; text-shadow:0 0 10px var(--teal);
+  }
+  #info-panel .sci-name {
+    color:rgba(224,247,255,0.6); font-style:italic; font-size:12px; margin-bottom:14px;
+  }
+  #info-panel .stat-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;
+  }
+  #info-panel .stat {
+    background:rgba(0,212,212,0.08); border:1px solid rgba(0,212,212,0.15);
+    border-radius:10px; padding:10px;
+  }
+  #info-panel .stat .label {
+    font-size:10px; color:rgba(224,247,255,0.5); font-weight:600;
+    text-transform:uppercase; letter-spacing:.8px; margin-bottom:3px;
+  }
+  #info-panel .stat .value { font-size:13px; color:var(--foam); font-weight:500; }
+  #info-panel .desc { font-size:12px; color:rgba(224,247,255,0.75); line-height:1.6; }
+  #info-panel .conservation {
+    display:inline-block; margin-top:12px; padding:4px 10px; border-radius:20px;
+    font-size:11px; font-weight:600; letter-spacing:.5px;
+  }
+  .status-lc { background:rgba(0,200,100,0.25); color:#00c864; border:1px solid rgba(0,200,100,0.4); }
+  .status-vu { background:rgba(255,180,0,0.25); color:#ffb400; border:1px solid rgba(255,180,0,0.4); }
+  .status-en { background:rgba(255,100,0,0.25); color:#ff6400; border:1px solid rgba(255,100,0,0.4); }
+  .status-cr { background:rgba(255,50,50,0.25); color:#ff3232; border:1px solid rgba(255,50,50,0.4); }
+
+  /* ── HUD ── */
+  #hud {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    display:flex; gap:10px; align-items:center; z-index:200;
+  }
+  .hud-btn {
+    background:var(--glass); backdrop-filter:blur(12px);
+    border:1px solid var(--glass-border); border-radius:12px;
+    color:var(--foam); font-family:'Inter',sans-serif; font-size:12px;
+    cursor:pointer; padding:10px 16px; transition:all .25s;
+    display:flex;align-items:center;gap:6px;
+  }
+  .hud-btn:hover { background:rgba(0,212,212,0.2); color:var(--teal); box-shadow:var(--glow); }
+
+  /* ── ZONE TITLE ── */
+  #zone-title {
+    position:fixed; top:80px; left:50%; transform:translateX(-50%);
+    font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700;
+    color:var(--teal); letter-spacing:4px; text-transform:uppercase;
+    text-shadow:0 0 20px var(--teal); opacity:.8;
+    background:var(--glass); backdrop-filter:blur(8px);
+    border:1px solid var(--glass-border); border-radius:30px;
+    padding:6px 20px; z-index:200; transition:opacity .5s;
+  }
+
+  /* ── TOOLTIP ── */
+  #tooltip {
+    position:fixed; background:var(--glass); backdrop-filter:blur(12px);
+    border:1px solid var(--glass-border); border-radius:10px;
+    padding:8px 14px; font-family:'Inter',sans-serif; font-size:12px;
+    color:var(--teal); pointer-events:none; z-index:400;
+    opacity:0; transition:opacity .2s; white-space:nowrap;
+    box-shadow:var(--glow);
+  }
+
+  /* ── FEED ANIMATION ── */
+  .food-particle {
+    position:fixed; font-size:16px; pointer-events:none; z-index:500;
+    animation: feedFall 2s forwards;
+  }
+  @keyframes feedFall {
+    0%   { opacity:1; transform:translateY(0) scale(1); }
+    100% { opacity:0; transform:translateY(200px) scale(.3); }
+  }
+
+  /* ── ACHIEVEMENT ── */
+  #achievement {
+    position:fixed; top:90px; right:20px;
+    background:linear-gradient(135deg,rgba(0,40,80,0.9),rgba(0,80,120,0.9));
+    backdrop-filter:blur(16px); border:1px solid var(--teal);
+    border-radius:16px; padding:14px 18px; z-index:500;
+    transform:translateX(140%); transition:transform .5s cubic-bezier(.4,0,.2,1);
+    box-shadow:var(--glow); min-width:240px;
+  }
+  #achievement.show { transform:translateX(0); }
+  #achievement .ach-label { font-size:10px; color:var(--teal); font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+  #achievement .ach-name { font-family:'Orbitron',sans-serif; font-size:14px; color:var(--gold); margin-top:2px; }
+  #achievement .ach-desc { font-size:11px; color:rgba(224,247,255,0.7); margin-top:4px; }
+
+  /* ── QUIZ ── */
+  #quiz-modal {
+    position:fixed; inset:0; background:rgba(0,10,30,0.85); backdrop-filter:blur(8px);
+    z-index:600; display:none; align-items:center; justify-content:center;
+  }
+  #quiz-modal.open { display:flex; }
+  .quiz-box {
+    background:linear-gradient(135deg,rgba(0,30,70,0.95),rgba(0,60,100,0.95));
+    border:1px solid var(--glass-border); border-radius:24px;
+    padding:36px; max-width:480px; width:90%; box-shadow:var(--glow);
+  }
+  .quiz-box h3 { font-family:'Orbitron',sans-serif; color:var(--teal); font-size:18px; margin-bottom:20px; }
+  .quiz-q { font-size:15px; color:var(--foam); line-height:1.6; margin-bottom:20px; }
+  .quiz-options { display:flex; flex-direction:column; gap:10px; }
+  .quiz-opt {
+    background:rgba(0,212,212,0.08); border:1px solid rgba(0,212,212,0.2);
+    border-radius:12px; padding:12px 16px; color:var(--foam); font-size:13px;
+    cursor:pointer; transition:all .2s; text-align:left;
+  }
+  .quiz-opt:hover { background:rgba(0,212,212,0.2); border-color:var(--teal); color:var(--teal); }
+  .quiz-opt.correct { background:rgba(0,200,100,0.2); border-color:#00c864; color:#00c864; }
+  .quiz-opt.wrong   { background:rgba(255,50,50,0.2);  border-color:#ff3232; color:#ff3232; }
+  .quiz-result { margin-top:16px; font-size:13px; color:var(--foam); line-height:1.6; }
+  .quiz-next { margin-top:16px; }
+
+  /* ── TOUR BANNER ── */
+  #tour-banner {
+    position:fixed; bottom:70px; left:50%; transform:translateX(-50%);
+    background:var(--glass); backdrop-filter:blur(12px);
+    border:1px solid var(--glass-border); border-radius:16px;
+    padding:12px 24px; font-family:'Inter',sans-serif; font-size:13px;
+    color:var(--foam); z-index:200; text-align:center;
+    opacity:0; transition:opacity .4s; pointer-events:none;
+  }
+  #tour-banner.show { opacity:1; }
+
+  /* ── DAY/NIGHT indicator ── */
+  #mode-badge {
+    position:fixed; top:20px; right:20px;
+    background:var(--glass); backdrop-filter:blur(12px);
+    border:1px solid var(--glass-border); border-radius:30px;
+    padding:6px 14px; font-size:12px; color:var(--foam); z-index:200;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* ── ENCYCLOPEDIA ── */
+  #ency-modal {
+    position:fixed; inset:0; background:rgba(0,10,30,0.88); backdrop-filter:blur(10px);
+    z-index:600; display:none; align-items:flex-start; justify-content:center; overflow-y:auto;
+    padding:60px 20px 20px;
+  }
+  #ency-modal.open { display:flex; }
+  .ency-box {
+    background:linear-gradient(135deg,rgba(0,25,60,0.97),rgba(0,50,90,0.97));
+    border:1px solid var(--glass-border); border-radius:24px;
+    padding:36px; width:100%; max-width:760px;
+  }
+  .ency-box h3 { font-family:'Orbitron',sans-serif; color:var(--teal); font-size:20px; margin-bottom:6px; }
+  .ency-search {
+    width:100%; padding:10px 14px; background:rgba(0,212,212,0.08);
+    border:1px solid rgba(0,212,212,0.25); border-radius:12px;
+    color:var(--foam); font-size:13px; font-family:'Inter',sans-serif;
+    outline:none; margin:16px 0 20px;
+  }
+  .ency-search::placeholder { color:rgba(224,247,255,0.4); }
+  .ency-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+  .ency-card {
+    background:rgba(0,212,212,0.06); border:1px solid rgba(0,212,212,0.15);
+    border-radius:14px; padding:14px; text-align:center; cursor:pointer;
+    transition:all .2s;
+  }
+  .ency-card:hover { background:rgba(0,212,212,0.15); border-color:var(--teal); transform:translateY(-2px); }
+  .ency-card .icon { font-size:32px; margin-bottom:6px; }
+  .ency-card .name { font-size:11px; color:var(--foam); font-weight:500; }
+  .ency-card .zone { font-size:10px; color:rgba(0,212,212,0.6); margin-top:2px; }
+  .discovered { position:relative; }
+  .discovered::after {
+    content:'✓'; position:absolute; top:6px; right:6px; font-size:10px;
+    color:var(--teal); background:rgba(0,212,212,0.2); border-radius:50%;
+    width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  }
+
+  /* responsive */
+  @media(max-width:600px){
+    #nav .logo { font-size:11px; }
+    #nav button { font-size:10px; padding:4px 8px; }
+    #zone-panel { display:none; }
+    #info-panel { width:calc(100vw - 40px); right:-110%; }
+    #info-panel.open { right:20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <span class="logo">🌊 OCEANVERSE</span>
+  <button onclick="openEncyclopedia()">🐟 Encyclopedia</button>
+  <button onclick="openQuiz()">🧠 Quiz</button>
+  <button onclick="startTour()">🎬 Tour</button>
+  <button onclick="feedFish()">🍤 Feed</button>
+</nav>
+
+<!-- ZONE TITLE -->
+<div id="zone-title">Tropical Reef Zone</div>
+
+<!-- ZONE PANEL -->
+<div id="zone-panel">
+  <button class="zone-btn active" onclick="gotoZone(0)" id="z0"><span class="dot" style="background:#ff9800"></span>Tropical Reef</button>
+  <button class="zone-btn" onclick="gotoZone(1)" id="z1"><span class="dot" style="background:#1565c0"></span>Deep Ocean</button>
+  <button class="zone-btn" onclick="gotoZone(2)" id="z2"><span class="dot" style="background:#b0bec5"></span>Arctic Ocean</button>
+  <button class="zone-btn" onclick="gotoZone(3)" id="z3"><span class="dot" style="background:#ce93d8"></span>Jellyfish Kingdom</button>
+  <button class="zone-btn" onclick="gotoZone(4)" id="z4"><span class="dot" style="background:#ef5350"></span>Shark Arena</button>
+  <button class="zone-btn" onclick="gotoZone(5)" id="z5"><span class="dot" style="background:#26a69a"></span>Turtle Sanctuary</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <button class="hud-btn" onclick="toggleDayNight()">🌙 Day/Night</button>
+  <button class="hud-btn" onclick="resetCamera()">🎯 Reset View</button>
+  <button class="hud-btn" onclick="toggle360()">🔄 360° Mode</button>
+  <button class="hud-btn" id="sound-btn" onclick="toggleSound()">🔊 Sound</button>
+</div>
+
+<!-- DAY/NIGHT -->
+<div id="mode-badge">☀️ Day Mode</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip"></div>
+
+<!-- INFO PANEL -->
+<div id="info-panel">
+  <button class="close-btn" onclick="closeInfo()">✕</button>
+  <div class="creature-icon" id="ip-icon">🐠</div>
+  <h2 id="ip-name">Clownfish</h2>
+  <div class="sci-name" id="ip-sci">Amphiprioninae</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">Habitat</div><div class="value" id="ip-habitat">Coral Reefs</div></div>
+    <div class="stat"><div class="label">Diet</div><div class="value" id="ip-diet">Omnivore</div></div>
+    <div class="stat"><div class="label">Lifespan</div><div class="value" id="ip-lifespan">6-10 years</div></div>
+    <div class="stat"><div class="label">Size</div><div class="value" id="ip-size">11 cm</div></div>
+  </div>
+  <div class="desc" id="ip-desc">Known for their vibrant orange and white coloring and their symbiotic relationship with sea anemones.</div>
+  <span class="conservation" id="ip-status">Least Concern</span>
+</div>
+
+<!-- ACHIEVEMENT -->
+<div id="achievement">
+  <div class="ach-label">🏆 Achievement Unlocked!</div>
+  <div class="ach-name" id="ach-name">First Discovery</div>
+  <div class="ach-desc" id="ach-desc">You discovered your first marine creature!</div>
+</div>
+
+<!-- QUIZ MODAL -->
+<div id="quiz-modal">
+  <div class="quiz-box">
+    <h3>🧠 Ocean Quiz</h3>
+    <div class="quiz-q" id="quiz-q"></div>
+    <div class="quiz-options" id="quiz-opts"></div>
+    <div class="quiz-result" id="quiz-result"></div>
+    <div class="quiz-next">
+      <button class="hud-btn" id="quiz-next-btn" onclick="nextQuestion()" style="display:none">Next Question →</button>
+      <button class="hud-btn" onclick="closeQuiz()" style="margin-left:8px">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENCYCLOPEDIA MODAL -->
+<div id="ency-modal">
+  <div class="ency-box">
+    <h3>🐋 Marine Encyclopedia</h3>
+    <div style="font-size:12px;color:rgba(224,247,255,0.5)">Discover all marine life in OceanVerse. Click any creature to learn more.</div>
+    <input class="ency-search" placeholder="Search species..." oninput="filterEncy(this.value)" id="ency-search">
+    <div class="ency-grid" id="ency-grid"></div>
+    <div style="margin-top:20px;text-align:right">
+      <button class="hud-btn" onclick="closeEncyclopedia()">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOUR BANNER -->
+<div id="tour-banner" id="tour-banner"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+const CREATURES = [
+  { id:'clownfish', name:'Clownfish', sci:'Amphiprioninae', icon:'🐠', zone:'Tropical Reef', habitat:'Coral Reefs', diet:'Omnivore', lifespan:'6-10 yrs', size:'11 cm', status:'lc', statusLabel:'Least Concern', desc:'Famous for their vibrant orange & white stripes and symbiotic bond with sea anemones, where they live for protection.' },
+  { id:'shark', name:'Great White Shark', sci:'Carcharodon carcharias', icon:'🦈', zone:'Shark Arena', habitat:'Open Ocean', diet:'Carnivore', lifespan:'70+ yrs', size:'6 m', status:'vu', statusLabel:'Vulnerable', desc:'The largest predatory fish on Earth with rows of serrated teeth and an extraordinary electrosensory system.' },
+  { id:'turtle', name:'Green Sea Turtle', sci:'Chelonia mydas', icon:'🐢', zone:'Turtle Sanctuary', habitat:'Tropical Seas', diet:'Herbivore', lifespan:'80 yrs', size:'1.5 m', status:'en', statusLabel:'Endangered', desc:'Ancient mariners of the sea, migrating thousands of miles between feeding grounds and nesting beaches.' },
+  { id:'jellyfish', name:'Moon Jellyfish', sci:'Aurelia aurita', icon:'🪼', zone:'Jellyfish Kingdom', habitat:'All Oceans', diet:'Carnivore', lifespan:'1 yr', size:'40 cm', status:'lc', statusLabel:'Least Concern', desc:'Ethereal pulsing creatures with translucent bells, they drift on currents and are 95% water by composition.' },
+  { id:'dolphin', name:'Bottlenose Dolphin', sci:'Tursiops truncatus', icon:'🐬', zone:'Tropical Reef', habitat:'Coastal Waters', diet:'Carnivore', lifespan:'40-60 yrs', size:'3.9 m', status:'lc', statusLabel:'Least Concern', desc:'Highly intelligent social mammals known for echolocation, complex communication, and playful behavior.' },
+  { id:'whale', name:'Blue Whale', sci:'Balaenoptera musculus', icon:'🐋', zone:'Deep Ocean', habitat:'Open Ocean', diet:'Filter Feeder', lifespan:'80-90 yrs', size:'30 m', status:'en', statusLabel:'Endangered', desc:'The largest animal ever known to have existed on Earth, consuming up to 40 million krill per day.' },
+  { id:'octopus', name:'Giant Pacific Octopus', sci:'Enteroctopus dofleini', icon:'🐙', zone:'Deep Ocean', habitat:'Rocky Reefs', diet:'Carnivore', lifespan:'3-5 yrs', size:'4.3 m', status:'lc', statusLabel:'Least Concern', desc:'Masters of camouflage with three hearts, blue blood, and remarkable problem-solving intelligence.' },
+  { id:'ray', name:'Manta Ray', sci:'Mobula birostris', icon:'🐡', zone:'Tropical Reef', habitat:'Tropical Oceans', diet:'Filter Feeder', lifespan:'40 yrs', size:'7 m', status:'en', statusLabel:'Endangered', desc:'Graceful giants of the open ocean, performing spectacular leaps and feeding on plankton near the surface.' },
+  { id:'seahorse', name:'Leafy Sea Dragon', sci:'Phycodurus eques', icon:'🌿', zone:'Tropical Reef', habitat:'Kelp Forests', diet:'Carnivore', lifespan:'5-10 yrs', size:'35 cm', status:'lc', statusLabel:'Least Concern', desc:'Extraordinary masters of disguise with elaborate leaf-like appendages that make them nearly invisible.' },
+  { id:'narwhal', name:'Narwhal', sci:'Monodon monoceros', icon:'🦄', zone:'Arctic Ocean', habitat:'Arctic Waters', diet:'Carnivore', lifespan:'50 yrs', size:'5 m', status:'lc', statusLabel:'Least Concern', desc:'The unicorns of the sea, with a spiral tusk that can reach 3 meters, used for sensing the environment.' },
+  { id:'orca', name:'Orca', sci:'Orcinus orca', icon:'🐳', zone:'Arctic Ocean', habitat:'All Oceans', diet:'Carnivore', lifespan:'60-90 yrs', size:'9 m', status:'lc', statusLabel:'Least Concern', desc:'The apex predators of the ocean with sophisticated hunting strategies passed down through generations.' },
+  { id:'crab', name:'Horseshoe Crab', sci:'Limulus polyphemus', icon:'🦀', zone:'Tropical Reef', habitat:'Sandy Seabeds', diet:'Omnivore', lifespan:'20+ yrs', size:'60 cm', status:'vu', statusLabel:'Vulnerable', desc:'Living fossils unchanged for 450 million years, their blue copper-based blood is vital for medical research.' },
+  { id:'anglerfish', name:'Deep Sea Anglerfish', sci:'Melanocetus johnsonii', icon:'🎣', zone:'Deep Ocean', habitat:'Deep Sea', diet:'Carnivore', lifespan:'20+ yrs', size:'20 cm', status:'lc', statusLabel:'Least Concern', desc:'Masters of the abyss with a bioluminescent lure that attracts prey in pitch-black deep-sea environments.' },
+  { id:'beluga', name:'Beluga Whale', sci:'Delphinapterus leucas', icon:'🤍', zone:'Arctic Ocean', habitat:'Arctic Seas', diet:'Carnivore', lifespan:'35-50 yrs', size:'5 m', status:'lc', statusLabel:'Least Concern', desc:'The canaries of the sea, beluga whales are highly vocal and can mimic sounds including human speech.' },
+  { id:'starfish', name:'Crown of Thorns Starfish', sci:'Acanthaster planci', icon:'⭐', zone:'Tropical Reef', habitat:'Coral Reefs', diet:'Carnivore', lifespan:'8 yrs', size:'40 cm', status:'lc', statusLabel:'Least Concern', desc:'One of the largest starfish species, with up to 21 arms covered in sharp spines that can devastate coral reefs.' },
+  { id:'squid', name:'Giant Squid', sci:'Architeuthis dux', icon:'🦑', zone:'Deep Ocean', habitat:'Deep Ocean', diet:'Carnivore', lifespan:'5 yrs', size:'13 m', status:'lc', statusLabel:'Least Concern', desc:'One of the most mysterious creatures on Earth, rarely observed alive in its natural deep-sea habitat.' },
+];
+
+const ZONES = [
+  { name:'Tropical Reef Zone', pos:[0,0,0], fog:'#0066aa', fogDensity:.015, ambient:0x004488, sky:'#003366' },
+  { name:'Deep Ocean Zone', pos:[200,0,0], fog:'#001133', fogDensity:.025, ambient:0x001133, sky:'#000011' },
+  { name:'Arctic Ocean Zone', pos:[-200,0,0], fog:'#aaccdd', fogDensity:.02, ambient:0x335566, sky:'#223344' },
+  { name:'Jellyfish Kingdom', pos:[0,0,200], fog:'#330066', fogDensity:.018, ambient:0x220044, sky:'#110033' },
+  { name:'Shark Arena', pos:[0,0,-200], fog:'#002244', fogDensity:.02, ambient:0x002244, sky:'#001122' },
+  { name:'Sea Turtle Sanctuary', pos:[0,-30,100], fog:'#004422', fogDensity:.015, ambient:0x003322, sky:'#002211' },
+];
+
+const QUIZ_QUESTIONS = [
+  { q:"Which is the largest animal ever known to have lived on Earth?", opts:["Blue Whale","Megalodon","African Elephant","Giant Squid"], a:0, info:"Blue whales can reach 30 meters in length and weigh up to 200 tonnes." },
+  { q:"How many hearts does an octopus have?", opts:["1","2","3","4"], a:2, info:"Octopuses have 3 hearts: two pump blood to the gills, one pumps it to the rest of the body." },
+  { q:"What makes a sea turtle's shell unique compared to other turtles?", opts:["It's detachable","It's fused to the spine","It's made of plastic","It glows in the dark"], a:1, info:"A sea turtle's shell is actually part of its skeleton, fused to its spine and ribs." },
+  { q:"What percentage of water is a jellyfish's body composed of?", opts:["50%","70%","85%","95%"], a:3, info:"Jellyfish are 95% water, which is why they disintegrate rapidly when washed ashore." },
+  { q:"How do sharks detect prey in murky water?", opts:["Sonar","Electroreception","Thermal vision","Smell alone"], a:1, info:"Sharks have special organs called the Ampullae of Lorenzini that detect electrical fields from living creatures." },
+  { q:"What do manta rays primarily eat?", opts:["Fish","Plankton","Coral","Crabs"], a:1, info:"Despite their massive size, manta rays are filter feeders that consume microscopic plankton." },
+  { q:"How long can a narwhal's tusk grow?", opts:["0.5 m","1 m","2 m","3 m"], a:3, info:"The narwhal's tusk, actually a modified tooth, can grow up to 3 meters long in males." },
+  { q:"Which ocean creature is known as a 'living fossil' unchanged for 450 million years?", opts:["Coelacanth","Horseshoe Crab","Nautilus","Sea turtle"], a:1, info:"The horseshoe crab has remained virtually unchanged for 450 million years, predating even the dinosaurs." },
+];
+
+const TOUR_STOPS = [
+  { zone:0, text:"🌊 Welcome to OceanVerse! We begin in the Tropical Reef, home to 25% of all marine species." },
+  { zone:3, text:"🪼 The ethereal Jellyfish Kingdom — over 500 million years of evolution in pulsing form." },
+  { zone:4, text:"🦈 The Shark Arena. Don't worry, the glass is thick! Sharks maintain ocean ecosystem balance." },
+  { zone:2, text:"🧊 Arctic waters, where narwhals and orcas navigate icy seas under the aurora borealis." },
+  { zone:1, text:"🌑 The Deep Ocean — less explored than the surface of the Moon. Darkness hides ancient secrets." },
+  { zone:5, text:"🐢 Our journey ends at the Turtle Sanctuary — a symbol of ocean resilience and conservation." },
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let discovered = new Set();
+let isDay = true;
+let is360 = false;
+let isTourRunning = false;
+let tourStep = 0;
+let currentZone = 0;
+let soundEnabled = false;
+let audioCtx = null;
+let currentQuizQ = 0;
+let quizAnswered = false;
+
+// ═══════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+camera.position.set(0, 5, 40);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+// Fog & Background
+scene.fog = new THREE.FogExp2(0x003366, 0.015);
+scene.background = new THREE.Color(0x001a3a);
+
+// Ambient light
+const ambientLight = new THREE.AmbientLight(0x004488, 1.2);
+scene.add(ambientLight);
+
+// Sun/directional light
+const sunLight = new THREE.DirectionalLight(0x88ccff, 1.5);
+sunLight.position.set(50, 100, 50);
+sunLight.castShadow = true;
+scene.add(sunLight);
+
+// Point lights for underwater caustics feel
+const pLight1 = new THREE.PointLight(0x0088ff, 2, 80);
+pLight1.position.set(0,20,0);
+scene.add(pLight1);
+const pLight2 = new THREE.PointLight(0x00ffcc, 1.5, 60);
+pLight2.position.set(-30,10,20);
+scene.add(pLight2);
+
+// ── WATER SURFACE ──
+const waterGeo = new THREE.PlaneGeometry(800, 800, 64, 64);
+const waterMat = new THREE.MeshStandardMaterial({
+  color:0x006688, transparent:true, opacity:0.55,
+  metalness:.8, roughness:.1, side:THREE.DoubleSide
+});
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.rotation.x = -Math.PI/2;
+water.position.y = 30;
+scene.add(water);
+
+// ── OCEAN FLOOR ──
+const floorGeo = new THREE.PlaneGeometry(800,800,32,32);
+const floorMat = new THREE.MeshStandardMaterial({ color:0x1a4a2e, roughness:1, metalness:.0 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.position.y = -30;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ── CORAL REEFS ──
+function makeCoralCluster(cx,cy,cz,count=8,palette=null){
+  const cols = palette||[0xff6b35,0xff1493,0xff8c00,0x00ced1,0xffa500,0xff69b4];
+  for(let i=0;i<count;i++){
+    const h = 1.5 + Math.random()*5;
+    const geo = new THREE.CylinderGeometry(
+      Math.random()*.4, Math.random()*.8+.3, h, Math.floor(4+Math.random()*5)
+    );
+    const mat = new THREE.MeshStandardMaterial({
+      color:cols[Math.floor(Math.random()*cols.length)],
+      roughness:.7, emissive:cols[Math.floor(Math.random()*cols.length)], emissiveIntensity:.1
+    });
+    const mesh = new THREE.Mesh(geo,mat);
+    mesh.position.set(cx+(Math.random()-.5)*12, cy-30+h/2, cz+(Math.random()-.5)*12);
+    mesh.rotation.set((Math.random()-.5)*.3,Math.random()*Math.PI,(Math.random()-.5)*.2);
+    mesh.castShadow = true;
+    scene.add(mesh);
+  }
+}
+// Tropical reef
+for(let i=0;i<12;i++) makeCoralCluster((Math.random()-.5)*80,-1,(Math.random()-.5)*80,10);
+// Jellyfish zone
+for(let i=0;i<6;i++) makeCoralCluster((Math.random()-.5)*30-3,-1,180+(Math.random()-.5)*40,5,[0xaa00ff,0xff00cc,0xcc00ff]);
+
+// ── ROCKS ──
+function makeRock(x,y,z,s=1){
+  const g = new THREE.DodecahedronGeometry(s*(1+Math.random()*.5),0);
+  const m = new THREE.MeshStandardMaterial({color:0x2a3540,roughness:1});
+  const r = new THREE.Mesh(g,m);
+  r.position.set(x,y-30+s,z);
+  r.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
+  r.castShadow = r.receiveShadow = true;
+  scene.add(r);
+}
+for(let i=0;i<60;i++) makeRock((Math.random()-.5)*200,-2,(Math.random()-.5)*200,1.5+Math.random()*3);
+
+// ── SEAWEED / KELP ──
+function makeKelp(x,z,h=8){
+  const mat = new THREE.MeshStandardMaterial({color:0x1a8c3a,side:THREE.DoubleSide,roughness:1});
+  for(let s=0;s<h;s++){
+    const g = new THREE.PlaneGeometry(.8,.8);
+    const m = new THREE.Mesh(g,mat);
+    m.position.set(x+(Math.random()-.5)*.3,s*.9-29,z+(Math.random()-.5)*.3);
+    m.rotation.y = Math.random()*Math.PI;
+    scene.add(m);
+  }
+}
+for(let i=0;i<80;i++) makeKelp((Math.random()-.5)*150,(Math.random()-.5)*150,4+Math.random()*6);
+
+// ── BUBBLES ──
+const BUBBLE_COUNT = 300;
+const bubblePositions = new Float32Array(BUBBLE_COUNT*3);
+const bubbleSpeeds = new Float32Array(BUBBLE_COUNT);
+for(let i=0;i<BUBBLE_COUNT;i++){
+  bubblePositions[i*3]   = (Math.random()-.5)*160;
+  bubblePositions[i*3+1] = (Math.random()-.5)*50;
+  bubblePositions[i*3+2] = (Math.random()-.5)*160;
+  bubbleSpeeds[i] = .03+Math.random()*.08;
+}
+const bubbleGeo = new THREE.BufferGeometry();
+bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePositions,3));
+const bubbleMat = new THREE.PointsMaterial({color:0xaaddff,size:.35,transparent:true,opacity:.6,sizeAttenuation:true});
+const bubbles = new THREE.Points(bubbleGeo, bubbleMat);
+scene.add(bubbles);
+
+// ── SUN RAYS (volumetric shafts) ──
+function makeSunRay(x,z){
+  const g = new THREE.CylinderGeometry(.5,4,50,6,1,true);
+  const m = new THREE.MeshBasicMaterial({color:0x88ccff,transparent:true,opacity:.06,side:THREE.DoubleSide});
+  const r = new THREE.Mesh(g,m);
+  r.position.set(x,5,z);
+  r.rotation.set(0,Math.random()*Math.PI,.1+Math.random()*.3);
+  scene.add(r);
+  return r;
+}
+const sunRays = [];
+for(let i=0;i<8;i++) sunRays.push(makeSunRay((Math.random()-.5)*30,(Math.random()-.5)*30));
+
+// ── PARTICLES (plankton / dust) ──
+const PLANKTON = 500;
+const planktonPos = new Float32Array(PLANKTON*3);
+for(let i=0;i<PLANKTON;i++){
+  planktonPos[i*3]   = (Math.random()-.5)*200;
+  planktonPos[i*3+1] = (Math.random()-.5)*60;
+  planktonPos[i*3+2] = (Math.random()-.5)*200;
+}
+const planktonGeo = new THREE.BufferGeometry();
+planktonGeo.setAttribute('position',new THREE.BufferAttribute(planktonPos,3));
+const planktonMat = new THREE.PointsMaterial({color:0x44ffcc,size:.15,transparent:true,opacity:.35,sizeAttenuation:true});
+scene.add(new THREE.Points(planktonGeo,planktonMat));
+
+// ── FISH SCHOOLS ──
+class FishSchool {
+  constructor(count, color, size, centerX, centerZ, depth=0){
+    this.center = new THREE.Vector3(centerX, depth, centerZ);
+    this.fishes = [];
+    this.velocities = [];
+    this.color = color;
+    const geo = new THREE.ConeGeometry(size*.4, size*1.2, 5);
+    geo.rotateX(Math.PI/2);
+    const mat = new THREE.MeshStandardMaterial({color,roughness:.5,metalness:.3,emissive:color,emissiveIntensity:.05});
+    for(let i=0;i<count;i++){
+      const m = new THREE.Mesh(geo,mat);
+      m.position.set(
+        centerX+(Math.random()-.5)*20,
+        depth+(Math.random()-.5)*8,
+        centerZ+(Math.random()-.5)*20
+      );
+      m.castShadow = true;
+      scene.add(m);
+      this.fishes.push(m);
+      this.velocities.push(new THREE.Vector3(
+        (Math.random()-.5)*.04,
+        (Math.random()-.5)*.01,
+        (Math.random()-.5)*.04
+      ));
+    }
+  }
+  update(t){
+    const spread=12, speed=.025, wobble=.008;
+    for(let i=0;i<this.fishes.length;i++){
+      const f=this.fishes[i], v=this.velocities[i];
+      // separation from center
+      const toCenter = this.center.clone().sub(f.position);
+      if(toCenter.length()>spread) v.add(toCenter.normalize().multiplyScalar(.002));
+      // circular drift
+      v.x += Math.sin(t*0.3+i)*wobble;
+      v.z += Math.cos(t*0.3+i*.7)*wobble;
+      v.y += Math.sin(t*0.5+i*.3)*wobble*.3;
+      v.clampLength(0,speed);
+      f.position.add(v);
+      // face direction
+      if(v.length()>0.001){
+        const dir = v.clone().normalize();
+        f.lookAt(f.position.clone().add(dir));
+      }
+      // boundary
+      if(Math.abs(f.position.x)>90) v.x*=-.8;
+      if(Math.abs(f.position.z)>90) v.z*=-.8;
+      f.position.y = Math.max(-25, Math.min(25, f.position.y));
+    }
+  }
+}
+
+const schools = [
+  new FishSchool(40, 0xff6600, .35, 10, 5, 0),
+  new FishSchool(30, 0xffcc00, .3, -15, -10, -5),
+  new FishSchool(25, 0x00aaff, .4, 20, -20, 3),
+  new FishSchool(20, 0xff66cc, .45, -5, 15, -8),
+  new FishSchool(35, 0x44ffaa, .28, 0, 30, 5),
+];
+
+// ── INTERACTIVE CREATURES ──
+const interactiveMeshes = [];
+
+function addCreature(creatureId, geo, mat, x, y, z){
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x,y,z);
+  m.castShadow = true;
+  m.userData.creature = creatureId;
+  scene.add(m);
+  interactiveMeshes.push(m);
+  return m;
+}
+
+// Shark
+const sharkGeo = new THREE.ConeGeometry(1,6,8);
+sharkGeo.rotateX(Math.PI/2);
+const sharkMat = new THREE.MeshStandardMaterial({color:0x4a6080,roughness:.4,metalness:.5});
+const shark = addCreature('shark', sharkGeo, sharkMat, 0, -5, -200);
+// fin
+const finGeo = new THREE.ConeGeometry(.5,2,4);
+const fin = new THREE.Mesh(finGeo, sharkMat);
+fin.position.set(0,1.2,0); scene.add(fin);
+
+// Sea turtle
+const turtleGeo = new THREE.SphereGeometry(2.5,12,8);
+turtleGeo.scale(1,.45,1.4);
+const turtleMat = new THREE.MeshStandardMaterial({color:0x2d6a4f,roughness:.8});
+const turtle = addCreature('turtle', turtleGeo, turtleMat, 0, -8, 100);
+// turtle head
+const tHeadGeo = new THREE.SphereGeometry(.8,8,6);
+const tHead = new THREE.Mesh(tHeadGeo, new THREE.MeshStandardMaterial({color:0x1e4e35}));
+tHead.position.set(0,0,3.5);
+turtle.add(tHead);
+// flippers
+[-1,1].forEach(side=>{
+  const fGeo = new THREE.BoxGeometry(2.5,.3,1.2);
+  const f = new THREE.Mesh(fGeo, turtleMat);
+  f.position.set(side*3,0,0.5); f.rotation.y = side*.4;
+  turtle.add(f);
+});
+
+// Jellyfish cluster
+const jellyPositions = [[0,-3,200],[10,2,195],[-8,0,205],[5,-5,210],[-5,3,198]];
+jellyPositions.forEach((p,i)=>{
+  const jGeo = new THREE.SphereGeometry(2.5,12,6);
+  jGeo.scale(1,.5,1);
+  const jMat = new THREE.MeshStandardMaterial({
+    color:[0xcc44ff,0xff44cc,0x8800ff,0xff00aa,0xaa00ff][i],
+    transparent:true,opacity:.7,emissive:[0xcc44ff,0xff44cc,0x8800ff,0xff00aa,0xaa00ff][i],emissiveIntensity:.3,roughness:.1
+  });
+  const j = addCreature('jellyfish', jGeo, jMat, p[0], p[1], p[2]);
+  // tentacles
+  for(let t=0;t<6;t++){
+    const tGeo = new THREE.CylinderGeometry(.05,.02,4+Math.random()*3,4);
+    const tm = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({color:0xff88ff,transparent:true,opacity:.5}));
+    const angle = (t/6)*Math.PI*2;
+    tm.position.set(Math.cos(angle)*1.8,-3,Math.sin(angle)*1.8);
+    j.add(tm);
+  }
+});
+
+// Manta ray
+const rayGeo = new THREE.BoxGeometry(8,.4,5);
+const rayMat = new THREE.MeshStandardMaterial({color:0x1a2240,roughness:.4,metalness:.5});
+const ray = addCreature('ray', rayGeo, rayMat, 0, 5, 0);
+ray.geometry.vertices; // flat box for now
+
+// Octopus body
+const octGeo = new THREE.SphereGeometry(2,10,8);
+octGeo.scale(1,.8,1);
+const octMat = new THREE.MeshStandardMaterial({color:0xaa2244,roughness:.7,emissive:0x880022,emissiveIntensity:.1});
+const octopus = addCreature('octopus', octGeo, octMat, 0, -25, 200);
+for(let i=0;i<8;i++){
+  const tGeo = new THREE.CylinderGeometry(.25,.08,5,5);
+  const tMesh = new THREE.Mesh(tGeo, octMat);
+  const a=(i/8)*Math.PI*2;
+  tMesh.position.set(Math.cos(a)*2.2,-1.5,Math.sin(a)*2.2);
+  tMesh.rotation.z = Math.cos(a)*.8; tMesh.rotation.x = Math.sin(a)*.8;
+  octopus.add(tMesh);
+}
+
+// Whale
+const whaleGeo = new THREE.SphereGeometry(8,16,10);
+whaleGeo.scale(2.5,.7,1);
+const whaleMat = new THREE.MeshStandardMaterial({color:0x1a3a5c,roughness:.6,metalness:.2});
+const whale = addCreature('whale', whaleGeo, whaleMat, 0, 10, 200);
+
+// Dolphin
+const dolphinGeo = new THREE.SphereGeometry(1.2,10,8);
+dolphinGeo.scale(2.2,.7,1);
+const dolphinMat = new THREE.MeshStandardMaterial({color:0x4488aa,roughness:.3,metalness:.4});
+const dolphin = addCreature('dolphin', dolphinGeo, dolphinMat, 15, 8, 0);
+
+// Narwhal (arctic)
+const narGeo = new THREE.SphereGeometry(1.5,10,8);
+narGeo.scale(2,.65,1);
+const narMat = new THREE.MeshStandardMaterial({color:0xd4e8f0,roughness:.3});
+const narwhal = addCreature('narwhal', narGeo, narMat, -200, 5, 0);
+// tusk
+const tuskGeo = new THREE.CylinderGeometry(.05,.02,4,6);
+tuskGeo.rotateZ(Math.PI/2);
+const tusk = new THREE.Mesh(tuskGeo,new THREE.MeshStandardMaterial({color:0xf0f0f0,roughness:.1}));
+tusk.position.set(3.5,0,0);
+narwhal.add(tusk);
+
+// ── DOME / TUNNEL ──
+const tunnelGeo = new THREE.CylinderGeometry(8,8,40,24,1,true);
+const tunnelMat = new THREE.MeshStandardMaterial({
+  color:0x006688,transparent:true,opacity:.18,side:THREE.DoubleSide,roughness:.1,metalness:.9
+});
+const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
+tunnel.rotation.z = Math.PI/2;
+tunnel.position.set(60,0,0);
+scene.add(tunnel);
+
+// ─────────────────────────────────────
+// CAMERA CONTROLS
+// ─────────────────────────────────────
+let camTarget = new THREE.Vector3(0,0,0);
+let camOffset = new THREE.Vector3(0,5,40);
+let isDragging=false, prevMouse={x:0,y:0};
+let camTheta=0, camPhi=0.2, camRadius=40;
+let targetTheta=0, targetPhi=0.2, targetRadius=40;
+let autoRotate = false;
+let zoneTarget = null;
+
+renderer.domElement.addEventListener('mousedown', e=>{ isDragging=true; prevMouse={x:e.clientX,y:e.clientY}; });
+renderer.domElement.addEventListener('mouseup', ()=>isDragging=false);
+renderer.domElement.addEventListener('mousemove', e=>{
+  if(isDragging && !is360){
+    const dx=(e.clientX-prevMouse.x)*.004, dy=(e.clientY-prevMouse.y)*.004;
+    targetTheta -= dx;
+    targetPhi = Math.max(.1, Math.min(Math.PI*.6, targetPhi+dy));
+    prevMouse={x:e.clientX,y:e.clientY};
+  }
+  // tooltip
+  handleHover(e);
+});
+renderer.domElement.addEventListener('wheel', e=>{
+  targetRadius = Math.max(10, Math.min(120, targetRadius+e.deltaY*.05));
+});
+// touch
+renderer.domElement.addEventListener('touchstart',e=>{isDragging=true; prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};});
+renderer.domElement.addEventListener('touchend',()=>isDragging=false);
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(isDragging){
+    const dx=(e.touches[0].clientX-prevMouse.x)*.004, dy=(e.touches[0].clientY-prevMouse.y)*.004;
+    targetTheta-=dx; targetPhi=Math.max(.1,Math.min(Math.PI*.6,targetPhi+dy));
+    prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  }
+});
+
+// click for info
+const raycaster = new THREE.Raycaster();
+const mouse2D = new THREE.Vector2();
+renderer.domElement.addEventListener('click', e=>{
+  mouse2D.x = (e.clientX/window.innerWidth)*2-1;
+  mouse2D.y = -(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse2D, camera);
+  const hits = raycaster.intersectObjects(interactiveMeshes,true);
+  if(hits.length>0){
+    let obj=hits[0].object;
+    while(obj && !obj.userData.creature) obj=obj.parent;
+    if(obj && obj.userData.creature) showInfo(obj.userData.creature);
+  }
+});
+
+// hover tooltip
+function handleHover(e){
+  mouse2D.x=(e.clientX/window.innerWidth)*2-1;
+  mouse2D.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse2D,camera);
+  const hits=raycaster.intersectObjects(interactiveMeshes,true);
+  const tip=document.getElementById('tooltip');
+  if(hits.length>0){
+    let obj=hits[0].object;
+    while(obj && !obj.userData.creature) obj=obj.parent;
+    if(obj && obj.userData.creature){
+      const c=CREATURES.find(x=>x.id===obj.userData.creature);
+      if(c){
+        tip.style.opacity='1';
+        tip.style.left=(e.clientX+14)+'px';
+        tip.style.top=(e.clientY-10)+'px';
+        tip.textContent=c.icon+' '+c.name;
+        renderer.domElement.style.cursor='pointer';
+        return;
+      }
+    }
+  }
+  tip.style.opacity='0';
+  renderer.domElement.style.cursor=isDragging?'grabbing':'grab';
+}
+
+// ─────────────────────────────────────
+// UI FUNCTIONS
+// ─────────────────────────────────────
+function showInfo(id){
+  const c=CREATURES.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('ip-icon').textContent=c.icon;
+  document.getElementById('ip-name').textContent=c.name;
+  document.getElementById('ip-sci').textContent=c.sci;
+  document.getElementById('ip-habitat').textContent=c.habitat;
+  document.getElementById('ip-diet').textContent=c.diet;
+  document.getElementById('ip-lifespan').textContent=c.lifespan;
+  document.getElementById('ip-size').textContent=c.size;
+  document.getElementById('ip-desc').textContent=c.desc;
+  const st=document.getElementById('ip-status');
+  st.textContent=c.statusLabel;
+  st.className='conservation status-'+c.status;
+  document.getElementById('info-panel').classList.add('open');
+  if(!discovered.has(id)){
+    discovered.add(id);
+    showAchievement(c.name, c.icon);
+    updateEncyGrid();
+  }
+}
+function closeInfo(){ document.getElementById('info-panel').classList.remove('open'); }
+
+function showAchievement(name,icon){
+  document.getElementById('ach-name').textContent=icon+' '+name+' Discovered!';
+  document.getElementById('ach-desc').textContent='You\'ve discovered '+discovered.size+' of '+CREATURES.length+' species.';
+  const el=document.getElementById('achievement');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+function gotoZone(i){
+  currentZone=i;
+  const z=ZONES[i];
+  zoneTarget=new THREE.Vector3(...z.pos);
+  camTarget.set(...z.pos);
+  document.getElementById('zone-title').textContent=z.name;
+  scene.fog.color.setStyle(z.fog);
+  scene.fog.density=z.fogDensity;
+  ambientLight.color.set(z.ambient);
+  scene.background.setStyle(z.sky);
+  document.querySelectorAll('.zone-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+}
+
+function toggleDayNight(){
+  isDay=!isDay;
+  const badge=document.getElementById('mode-badge');
+  if(isDay){
+    sunLight.intensity=1.5; ambientLight.intensity=1.2;
+    badge.textContent='☀️ Day Mode';
+    scene.fog.color.setHex(0x003366);
+  } else {
+    sunLight.intensity=.2; ambientLight.intensity=.3;
+    badge.textContent='🌙 Night Mode';
+    scene.fog.color.setHex(0x000a1a);
+    sunRays.forEach(r=>r.material.opacity=.01);
+  }
+  if(isDay) sunRays.forEach(r=>r.material.opacity=.06);
+}
+
+function resetCamera(){ targetTheta=0; targetPhi=.2; targetRadius=40; camTarget.set(0,0,0); gotoZone(0); }
+
+function toggle360(){
+  is360=!is360;
+  autoRotate=is360;
+  document.querySelector('[onclick="toggle360()"]').textContent=is360?'⏹ Stop 360°':'🔄 360° Mode';
+}
+
+function feedFish(){
+  for(let i=0;i<6;i++){
+    const el=document.createElement('div');
+    el.className='food-particle';
+    el.textContent=['🦐','🍤','🐟','🦀'][Math.floor(Math.random()*4)];
+    el.style.left=Math.random()*window.innerWidth+'px';
+    el.style.top='50%';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),2100);
+  }
+  schools.forEach(s=>{ s.center.x+=((Math.random()-.5)*20); s.center.z+=((Math.random()-.5)*20); });
+  setTimeout(()=>schools.forEach(s=>{ s.center.x*=.5; s.center.z*=.5; }),2500);
+}
+
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  document.getElementById('sound-btn').textContent=soundEnabled?'🔇 Sound Off':'🔊 Sound';
+  if(soundEnabled) startAmbientSound();
+  else if(audioCtx) { audioCtx.close(); audioCtx=null; }
+}
+
+function startAmbientSound(){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  function makeWave(freq,gain,type='sine'){
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.type=type; osc.frequency.value=freq; g.gain.value=gain;
+    osc.start(); return {osc,g};
+  }
+  // deep ambient drone
+  const w1=makeWave(55,.04,'sine');
+  const w2=makeWave(110,.02,'sine');
+  const w3=makeWave(220,.01,'triangle');
+  // gentle modulation
+  const lfo=audioCtx.createOscillator();
+  lfo.frequency.value=.1;
+  const lfoGain=audioCtx.createGain(); lfoGain.gain.value=5;
+  lfo.connect(lfoGain); lfoGain.connect(w1.osc.frequency);
+  lfo.start();
+}
+
+// ── QUIZ ──
+function openQuiz(){ currentQuizQ=0; quizAnswered=false; renderQuestion(); document.getElementById('quiz-modal').classList.add('open'); }
+function closeQuiz(){ document.getElementById('quiz-modal').classList.remove('open'); }
+function renderQuestion(){
+  const q=QUIZ_QUESTIONS[currentQuizQ%QUIZ_QUESTIONS.length];
+  quizAnswered=false;
+  document.getElementById('quiz-q').textContent=q.q;
+  document.getElementById('quiz-result').textContent='';
+  document.getElementById('quiz-next-btn').style.display='none';
+  const opts=document.getElementById('quiz-opts');
+  opts.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const btn=document.createElement('button');
+    btn.className='quiz-opt'; btn.textContent=o;
+    btn.onclick=()=>answerQuiz(i,q,btn);
+    opts.appendChild(btn);
+  });
+}
+function answerQuiz(i,q,btn){
+  if(quizAnswered) return;
+  quizAnswered=true;
+  const all=document.querySelectorAll('.quiz-opt');
+  all[q.a].classList.add('correct');
+  if(i!==q.a) btn.classList.add('wrong');
+  document.getElementById('quiz-result').textContent=(i===q.a?'✅ Correct! ':'❌ Not quite. ')+q.info;
+  document.getElementById('quiz-next-btn').style.display='inline-flex';
+}
+function nextQuestion(){ currentQuizQ++; renderQuestion(); }
+
+// ── ENCYCLOPEDIA ──
+function openEncyclopedia(){ updateEncyGrid(); document.getElementById('ency-modal').classList.add('open'); }
+function closeEncyclopedia(){ document.getElementById('ency-modal').classList.remove('open'); }
+function updateEncyGrid(q=''){
+  const grid=document.getElementById('ency-grid');
+  grid.innerHTML='';
+  const filtered=CREATURES.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.zone.toLowerCase().includes(q.toLowerCase()));
+  filtered.forEach(c=>{
+    const card=document.createElement('div');
+    card.className='ency-card'+(discovered.has(c.id)?' discovered':'');
+    card.innerHTML=`<div class="icon">${c.icon}</div><div class="name">${c.name}</div><div class="zone">${c.zone}</div>`;
+    card.onclick=()=>{ closeEncyclopedia(); showInfo(c.id); };
+    grid.appendChild(card);
+  });
+}
+function filterEncy(v){ updateEncyGrid(v); }
+
+// ── VIRTUAL TOUR ──
+function startTour(){
+  if(isTourRunning) return;
+  isTourRunning=true; tourStep=0;
+  runTourStep();
+}
+function runTourStep(){
+  if(tourStep>=TOUR_STOPS.length){ isTourRunning=false; hideTourBanner(); return; }
+  const stop=TOUR_STOPS[tourStep];
+  gotoZone(stop.zone);
+  showTourBanner(stop.text);
+  tourStep++;
+  setTimeout(runTourStep, 5000);
+}
+function showTourBanner(txt){
+  const b=document.getElementById('tour-banner');
+  b.textContent=txt; b.classList.add('show');
+}
+function hideTourBanner(){ document.getElementById('tour-banner').classList.remove('show'); }
+
+// ─────────────────────────────────────
+// ANIMATION LOOP
+// ─────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+
+  // ── camera
+  if(autoRotate) targetTheta+=.003;
+  camTheta += (targetTheta-camTheta)*.05;
+  camPhi   += (targetPhi-camPhi)*.05;
+  camRadius+= (targetRadius-camRadius)*.05;
+
+  const cx = camTarget.x + camRadius*Math.sin(camTheta)*Math.cos(camPhi);
+  const cy = camTarget.y + camRadius*Math.sin(camPhi);
+  const cz = camTarget.z + camRadius*Math.cos(camTheta)*Math.cos(camPhi);
+  camera.position.set(cx,cy,cz);
+  camera.lookAt(camTarget);
+
+  // ── water animation
+  water.position.y = 28+Math.sin(t*.5)*.5;
+  const wv = water.geometry.attributes.position.array;
+  for(let i=0;i<wv.length;i+=3){
+    wv[i+2]=Math.sin(t+wv[i]*.15)*0.5+Math.cos(t*.7+wv[i+1]*.15)*0.3;
+  }
+  water.geometry.attributes.position.needsUpdate=true;
+
+  // ── bubbles
+  const bpos=bubbles.geometry.attributes.position.array;
+  for(let i=0;i<BUBBLE_COUNT;i++){
+    bpos[i*3+1]+=bubbleSpeeds[i];
+    if(bpos[i*3+1]>28){ bpos[i*3+1]=-28+(Math.random()*10-5); }
+    bpos[i*3]+=Math.sin(t+i)*.01;
+  }
+  bubbles.geometry.attributes.position.needsUpdate=true;
+
+  // ── sun rays sway
+  sunRays.forEach((r,i)=>{ r.rotation.z=Math.sin(t*.2+i)*.05+.2; r.material.opacity=(.04+Math.sin(t*.3+i)*.02)*(isDay?1:0); });
+
+  // ── light pulse
+  pLight1.position.x=Math.sin(t*.4)*20;
+  pLight1.position.z=Math.cos(t*.3)*20;
+  pLight1.intensity=1.5+Math.sin(t*.8)*.5;
+
+  // ── fish schools
+  schools.forEach(s=>s.update(t));
+
+  // ── shark patrol
+  shark.position.x=Math.sin(t*.4)*50;
+  shark.position.z=-200+Math.cos(t*.3)*30;
+  shark.position.y=-5+Math.sin(t*.6)*3;
+  shark.rotation.y=Math.atan2(Math.cos(t*.4),Math.sin(t*.3)*(-1))+Math.PI;
+
+  // ── turtle glide
+  turtle.position.x=Math.sin(t*.3)*30;
+  turtle.position.z=100+Math.cos(t*.25)*20;
+  turtle.position.y=-8+Math.sin(t*.4)*2;
+  turtle.rotation.y=t*.3;
+
+  // ── jellyfish pulse
+  interactiveMeshes.forEach(m=>{
+    if(m.userData.creature==='jellyfish'){
+      const scl=1+Math.sin(t*2+m.position.x)*.15;
+      m.scale.set(scl,1/scl*(.5+Math.abs(Math.sin(t*2+m.position.x))*.1),scl);
+      m.position.y+=Math.sin(t*1.5+m.position.x)*.02;
+      m.position.y=Math.max(-5,Math.min(10,m.position.y));
+    }
+  });
+
+  // ── manta ray glide
+  ray.position.x=Math.cos(t*.25)*40;
+  ray.position.z=Math.sin(t*.25)*40;
+  ray.position.y=5+Math.sin(t*.5)*4;
+  ray.rotation.y=t*.25+Math.PI;
+  ray.rotation.z=Math.sin(t*.5)*.1;
+
+  // ── octopus sway
+  octopus.rotation.y=t*.2;
+  octopus.position.y=-25+Math.sin(t*.6)*2;
+
+  // ── whale
+  whale.position.x=Math.sin(t*.15)*60;
+  whale.position.z=200+Math.cos(t*.12)*40;
+  whale.position.y=10+Math.sin(t*.3)*5;
+  whale.rotation.y=t*.15+Math.PI*.5;
+
+  // ── dolphin
+  dolphin.position.x=15+Math.cos(t*.7)*20;
+  dolphin.position.z=Math.sin(t*.7)*15;
+  dolphin.position.y=8+Math.abs(Math.sin(t*1.2))*6;
+  dolphin.rotation.y=t*.7+Math.PI*.5;
+  dolphin.rotation.z=Math.sin(t*1.2)*.3;
+
+  // ── narwhal
+  narwhal.position.x=-200+Math.cos(t*.4)*40;
+  narwhal.position.z=Math.sin(t*.35)*30;
+  narwhal.position.y=5+Math.sin(t*.5)*3;
+  narwhal.rotation.y=t*.4+Math.PI*.5;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// resize
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// init
+updateEncyGrid();
+console.log('🌊 OceanVerse Aquarium loaded. Discover', CREATURES.length, 'marine species!');
+</script>
+</body>
+</html>
